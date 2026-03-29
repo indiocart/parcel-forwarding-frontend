@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import api from '@/services/api';
+import FileUpload from './FileUpload';
 
 interface OrderItem {
   productName: string;
@@ -11,6 +12,7 @@ interface OrderItem {
   quantity: number;
   notes?: string;
   estimatedPrice?: number;
+  screenshotUrl?: string;
 }
 
 interface OrderFormProps {
@@ -42,6 +44,10 @@ export default function OrderForm({ onOrderCreated }: OrderFormProps) {
     setItems(newItems);
   };
 
+  const handleUploadComplete = (index: number, url: string) => {
+    updateItem(index, 'screenshotUrl', url);
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
@@ -58,10 +64,20 @@ export default function OrderForm({ onOrderCreated }: OrderFormProps) {
 
       const orderId = orderResponse.data.id;
 
-      // Add all items
+      // Add all items with screenshotUrl
       for (const item of items) {
         if (item.productName.trim()) {
-          await api.post(`/orders/${orderId}/items`, item);
+          const itemData = { 
+            productName: item.productName,
+            productUrl: item.productUrl,
+            size: item.size,
+            color: item.color,
+            quantity: item.quantity,
+            notes: item.notes,
+            estimatedPrice: item.estimatedPrice,
+            screenshotUrl: item.screenshotUrl
+          };
+          await api.post(`/orders/${orderId}/items`, itemData);
         }
       }
 
@@ -277,6 +293,28 @@ export default function OrderForm({ onOrderCreated }: OrderFormProps) {
                     placeholder="Any specific instructions for this item..."
                   />
                 </div>
+
+                {/* File Upload for Offline Orders */}
+                {orderType === 'offline' && (
+                  <div className="md:col-span-2">
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Product Screenshot/Photo
+                    </label>
+                    <FileUpload
+                      onUploadComplete={(url) => handleUploadComplete(index, url)}
+                      buttonText={item.screenshotUrl ? 'Change Image' : 'Upload Product Photo'}
+                    />
+                    {item.screenshotUrl && (
+                      <div className="mt-2">
+                        <img 
+                          src={`http://localhost:3001${item.screenshotUrl}`} 
+                          alt="Product" 
+                          className="h-20 w-20 object-cover rounded border"
+                        />
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
             </div>
           ))}

@@ -53,10 +53,12 @@ export default function OrderDetailPage() {
     const colors: Record<string, string> = {
       draft: 'bg-gray-200 text-gray-800',
       submitted: 'bg-yellow-200 text-yellow-800',
+      estimation_sent: 'bg-purple-200 text-purple-800',
+      awaiting_payment: 'bg-orange-200 text-orange-800',
       purchased: 'bg-blue-200 text-blue-800',
-      received_at_warehouse: 'bg-purple-200 text-purple-800',
-      packing: 'bg-indigo-200 text-indigo-800',
-      shipped: 'bg-orange-200 text-orange-800',
+      received_at_warehouse: 'bg-indigo-200 text-indigo-800',
+      packing: 'bg-pink-200 text-pink-800',
+      shipped: 'bg-teal-200 text-teal-800',
       delivered: 'bg-green-200 text-green-800',
       completed: 'bg-green-200 text-green-800',
       cancelled: 'bg-red-200 text-red-800',
@@ -120,18 +122,33 @@ export default function OrderDetailPage() {
             <div className="space-y-4">
               {order.items.map((item, idx) => (
                 <div key={idx} className="border-b border-gray-200 pb-4 last:border-0">
-                  <p className="font-medium">{item.productName}</p>
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-2 mt-2 text-sm text-gray-600">
-                    <p>Quantity: {item.quantity}</p>
-                    {item.size && <p>Size: {item.size}</p>}
-                    {item.color && <p>Color: {item.color}</p>}
-                    {item.estimatedPrice && <p>Est. Price: ₹{item.estimatedPrice}</p>}
+                  <div className="flex justify-between items-start">
+                    <div>
+                      <p className="font-medium">{item.productName}</p>
+                      <div className="grid grid-cols-2 md:grid-cols-4 gap-2 mt-2 text-sm text-gray-600">
+                        <p>Quantity: {item.quantity}</p>
+                        {item.size && <p>Size: {item.size}</p>}
+                        {item.color && <p>Color: {item.color}</p>}
+                        {item.estimatedPrice && <p>Est. Price: ₹{item.estimatedPrice}</p>}
+                      </div>
+                      {item.productUrl && (
+                        <a href={item.productUrl} target="_blank" rel="noopener noreferrer" 
+                           className="text-blue-600 text-sm hover:underline block mt-2">
+                          View Product →
+                        </a>
+                      )}
+                    </div>
                   </div>
-                  {item.productUrl && (
-                    <a href={item.productUrl} target="_blank" rel="noopener noreferrer" 
-                       className="text-blue-600 text-sm hover:underline">
-                      View Product →
-                    </a>
+                  {/* Display screenshot if available */}
+                  {item.screenshotUrl && (
+                    <div className="mt-3">
+                      <p className="text-sm text-gray-600 mb-1">Product Screenshot:</p>
+                      <img 
+                        src={`http://localhost:3001${item.screenshotUrl}`} 
+                        alt={item.productName}
+                        className="h-32 w-32 object-cover rounded border shadow-sm"
+                      />
+                    </div>
                   )}
                 </div>
               ))}
