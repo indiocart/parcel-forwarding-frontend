@@ -6,11 +6,14 @@ import Link from 'next/link';
 import api from '@/services/api';
 import { authService } from '@/services/auth.service';
 
+const API_BASE = process.env.NEXT_PUBLIC_API_URL;
+
 interface Order {
   id: number;
   status: string;
   orderType: string;
   consolidationRequested: boolean;
+  paymentStatus: boolean;
   notes: string;
   createdAt: string;
   items: any[];
@@ -24,6 +27,18 @@ export default function OrderDetailPage() {
   const [timeline, setTimeline] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+
+  const ORDER_STEPS = [
+    'submitted',
+    'estimation_sent',
+    'awaiting_payment',
+    'purchased',
+    'received_at_warehouse',
+    'packing',
+    'shipped',
+    'delivered',
+    'completed'
+  ];
 
   useEffect(() => {
     if (!authService.isAuthenticated()) {
@@ -44,9 +59,7 @@ export default function OrderDetailPage() {
       .catch((err) => {
         setError(err.response?.data?.message || 'Failed to load order');
       })
-      .finally(() => {
-        setLoading(false);
-      });
+      .finally(() => setLoading(false));
   }, [params.id, router]);
 
   const getStatusColor = (status: string) => {
@@ -66,10 +79,14 @@ export default function OrderDetailPage() {
     return colors[status] || 'bg-gray-200 text-gray-800';
   };
 
+  const getStepIndex = (status: string) => {
+    return ORDER_STEPS.indexOf(status);
+  };
+
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-xl">Loading...</div>
+      <div className="min-h-screen flex items-center justify-center text-xl">
+        Loading order...
       </div>
     );
   }
@@ -84,100 +101,126 @@ export default function OrderDetailPage() {
     );
   }
 
+  const currentStep = getStepIndex(order.status);
+
   return (
     <div className="min-h-screen bg-gray-50">
+      {/* Navbar */}
       <nav className="bg-white shadow-sm">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between h-16">
-            <div className="flex items-center">
-              <Link href="/dashboard" className="text-blue-600 hover:text-blue-800">
-                ← Back to Dashboard
-              </Link>
-              <h1 className="ml-4 text-xl font-bold text-gray-900">Order #{order.id}</h1>
-            </div>
-          </div>
+        <div className="max-w-7xl mx-auto px-4 flex items-center h-16">
+          <Link href="/dashboard" className="text-blue-600 hover:text-blue-800">
+            ← Back to Dashboard
+          </Link>
+          <h1 className="ml-4 text-xl font-bold">Order #{order.id}</h1>
         </div>
       </nav>
 
-      <main className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
-        <div className="space-y-6">
-          {/* Order Status */}
-          <div className="bg-white rounded-lg shadow p-6">
-            <h2 className="text-lg font-semibold mb-4">Order Status</h2>
-            <div className="inline-flex px-3 py-1 rounded-full text-sm font-medium mb-4">
-              <span className={`px-3 py-1 rounded-full ${getStatusColor(order.status)}`}>
-                {order.status.replace(/_/g, ' ').toUpperCase()}
-              </span>
-            </div>
-            {order.notes && (
-              <p className="text-gray-600 mt-2">
-                <strong>Notes:</strong> {order.notes}
-              </p>
-            )}
+      <main className="max-w-6xl mx-auto py-8 px-4 space-y-8">
+
+        {/* ORDER PROGRESS TRACKER */}
+        <div className="bg-white p-6 rounded-lg shadow">
+          <h2 className="font-semibold text-lg mb-6">Order Progress</h2>
+          <div className="flex flex-wrap gap-3">
+            {ORDER_STEPS.map((step, index) => (
+              <div
+                key={step}
+                className={`px-3 py-2 rounded-full text-xs font-semibold
+                  ${index <= currentStep ? 'bg-green-600 text-white' : 'bg-gray-200 text-gray-600'}`}
+              >
+                {step.replace(/_/g, ' ').toUpperCase()}
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* ORDER SUMMARY */}
+        <div className="bg-white p-6 rounded-lg shadow grid md:grid-cols-3 gap-6">
+          <div>
+            <h3 className="font-semibold mb-2">Status</h3>
+            <span className={`px-3 py-1 rounded-full text-sm ${getStatusColor(order.status)}`}>
+              {order.status.replace(/_/g, ' ').toUpperCase()}
+            </span>
           </div>
 
-          {/* Items */}
+          <div>
+            <h3 className="font-semibold mb-2">Payment</h3>
+            <span className={`px-3 py-1 rounded-full text-sm ${order.paymentStatus ? 'bg-green-200 text-green-800' : 'bg-red-200 text-red-800'}`}>
+              {order.paymentStatus ? 'PAID' : 'PENDING'}
+            </span>
+          </div>
+
+          <div>
+            <h3 className="font-semibold mb-2">Order Type</h3>
+            <p className="text-gray-600 capitalize">{order.orderType}</p>
+            {order.consolidationRequested && (
+              <p className="text-sm text-blue-600 mt-1">Consolidation Requested</p>
+            )}
+          </div>
+        </div>
+
+        {/* ITEMS */}
+        <div className="bg-white rounded-lg shadow p-6">
+          <h2 className="text-lg font-semibold mb-4">Items</h2>
+
+          {order.items.length === 0 && (
+            <p className="text-gray-500">No items found.</p>
+          )}
+
+          <div className="space-y-6">
+            {order.items.map((item, idx) => (
+              <div key={idx} className="border-b pb-5 last:border-0">
+                <p className="font-semibold">{item.productName}</p>
+
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mt-2 text-sm text-gray-600">
+                  <p>Qty: {item.quantity}</p>
+                  {item.size && <p>Size: {item.size}</p>}
+                  {item.color && <p>Color: {item.color}</p>}
+                  {item.estimatedPrice && <p>₹{item.estimatedPrice}</p>}
+                </div>
+
+                {item.productUrl && (
+                  <a href={item.productUrl} target="_blank"
+                    className="text-blue-600 text-sm hover:underline block mt-2">
+                    View Product →
+                  </a>
+                )}
+
+                {item.screenshotUrl && (
+                  <img
+                    src={`${API_BASE}${item.screenshotUrl}`}
+                    alt="product"
+                    className="mt-3 h-32 rounded border shadow"
+                  />
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* TIMELINE */}
+        {timeline.length > 0 && (
           <div className="bg-white rounded-lg shadow p-6">
-            <h2 className="text-lg font-semibold mb-4">Items</h2>
+            <h2 className="text-lg font-semibold mb-4">Order Timeline</h2>
+
             <div className="space-y-4">
-              {order.items.map((item, idx) => (
-                <div key={idx} className="border-b border-gray-200 pb-4 last:border-0">
-                  <div className="flex justify-between items-start">
-                    <div>
-                      <p className="font-medium">{item.productName}</p>
-                      <div className="grid grid-cols-2 md:grid-cols-4 gap-2 mt-2 text-sm text-gray-600">
-                        <p>Quantity: {item.quantity}</p>
-                        {item.size && <p>Size: {item.size}</p>}
-                        {item.color && <p>Color: {item.color}</p>}
-                        {item.estimatedPrice && <p>Est. Price: ₹{item.estimatedPrice}</p>}
-                      </div>
-                      {item.productUrl && (
-                        <a href={item.productUrl} target="_blank" rel="noopener noreferrer" 
-                           className="text-blue-600 text-sm hover:underline block mt-2">
-                          View Product →
-                        </a>
-                      )}
-                    </div>
+              {timeline.map((log, idx) => (
+                <div key={idx} className="flex space-x-3">
+                  <div className="w-2 h-2 bg-blue-500 rounded-full mt-2"></div>
+                  <div>
+                    <p className="font-medium">{log.status.replace(/_/g, ' ').toUpperCase()}</p>
+                    <p className="text-sm text-gray-500">
+                      {new Date(log.timestamp).toLocaleString()}
+                    </p>
+                    {log.message && (
+                      <p className="text-sm text-gray-600 mt-1">{log.message}</p>
+                    )}
                   </div>
-                  {/* Display screenshot if available */}
-                  {item.screenshotUrl && (
-                    <div className="mt-3">
-                      <p className="text-sm text-gray-600 mb-1">Product Screenshot:</p>
-                      <img 
-                        src={`http://localhost:3001${item.screenshotUrl}`} 
-                        alt={item.productName}
-                        className="h-32 w-32 object-cover rounded border shadow-sm"
-                      />
-                    </div>
-                  )}
                 </div>
               ))}
             </div>
           </div>
+        )}
 
-          {/* Timeline */}
-          {timeline.length > 0 && (
-            <div className="bg-white rounded-lg shadow p-6">
-              <h2 className="text-lg font-semibold mb-4">Order Timeline</h2>
-              <div className="space-y-4">
-                {timeline.map((log, idx) => (
-                  <div key={idx} className="flex items-start space-x-3">
-                    <div className="w-2 h-2 bg-blue-500 rounded-full mt-2"></div>
-                    <div>
-                      <p className="font-medium">{log.status.replace(/_/g, ' ').toUpperCase()}</p>
-                      <p className="text-sm text-gray-500">
-                        {new Date(log.timestamp).toLocaleString()}
-                      </p>
-                      {log.message && (
-                        <p className="text-sm text-gray-600 mt-1">{log.message}</p>
-                      )}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-        </div>
       </main>
     </div>
   );
