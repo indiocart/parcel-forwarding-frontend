@@ -4,6 +4,8 @@ import { useState } from 'react';
 import api from '@/services/api';
 import FileUpload from './FileUpload';
 
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+
 interface OrderItem {
   productName: string;
   productUrl?: string;
@@ -307,9 +309,12 @@ export default function OrderForm({ onOrderCreated }: OrderFormProps) {
                     {item.screenshotUrl && (
                       <div className="mt-2">
                         <img 
-                          src={`http://localhost:3001${item.screenshotUrl}`} 
+                          src={`${API_BASE_URL}${item.screenshotUrl}`} 
                           alt="Product" 
                           className="h-20 w-20 object-cover rounded border"
+                          onError={(e) => {
+                            (e.target as HTMLImageElement).src = '/images/placeholder.png';
+                          }}
                         />
                       </div>
                     )}

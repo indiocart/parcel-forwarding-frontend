@@ -6,7 +6,7 @@ import Link from 'next/link';
 import api from '@/services/api';
 import { authService } from '@/services/auth.service';
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL;
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
 
 interface Order {
   id: number;
@@ -186,11 +186,16 @@ export default function OrderDetailPage() {
                 )}
 
                 {item.screenshotUrl && (
-                  <img
-                    src={`${API_BASE}${item.screenshotUrl}`}
-                    alt="product"
-                    className="mt-3 h-32 rounded border shadow"
-                  />
+                  <div className="mt-3">
+                    <img
+                      src={`${API_BASE_URL}${item.screenshotUrl}`}
+                      alt={item.productName}
+                      className="h-32 rounded border shadow object-cover"
+                      onError={(e) => {
+                        (e.target as HTMLImageElement).src = '/images/placeholder.png';
+                      }}
+                    />
+                  </div>
                 )}
               </div>
             ))}
